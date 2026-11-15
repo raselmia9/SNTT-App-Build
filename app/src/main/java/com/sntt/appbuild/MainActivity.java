@@ -1,6 +1,21 @@
 package com.sntt.appbuild;
 
 import android.annotation.SuppressLint;
+import android.Manifest;
+import android.content.Intent;
+import android.content.ContentValues;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import androidx.core.content.FileProvider;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.Base64;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -128,6 +143,16 @@ public class MainActivity extends AppCompatActivity {
             public void onShowToast(String message) {
                 mainHandler.post(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
             }
+
+            @Override
+            public void onSaveImage(String base64Data, String fileName) {
+                mainHandler.post(() -> saveScreenshotFromWeb(base64Data, fileName));
+            }
+
+            @Override
+            public void onShareImage(String base64Data, String fileName) {
+                mainHandler.post(() -> shareScreenshotFromWeb(base64Data, fileName));
+            }
         });
 
         webView.addJavascriptInterface(jsBridge, "TinyDB");
@@ -160,6 +185,96 @@ public class MainActivity extends AppCompatActivity {
                 + "  }"
                 + "})();";
         view.evaluateJavascript(js, null);
+    }
+
+    private void saveScreenshotFromWeb(String base64Data, String fileName) {
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            if (bitmap == null) throw new IllegalArgumentException("Invalid screenshot image");
+
+            String safeName = fileName == null || fileName.trim().isEmpty() ? "Advance_Oil_Calculator.png" : fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+            if (!safeName.toLowerCase().endsWith(".png")) safeName += ".png";
+            Uri savedUri;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, safeName);
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/SNTT");
+                values.put(MediaStore.Images.Media.IS_PENDING, 1);
+                savedUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                if (savedUri == null) throw new IllegalStateException("Could not create image file");
+                try (java.io.OutputStream out = getContentResolver().openOutputStream(savedUri)) {
+                    if (out == null) throw new IllegalStateException("Could not open image file");
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+                }
+                values.clear();
+                values.put(MediaStore.Images.Media.IS_PENDING, 0);
+                getContentResolver().update(savedUri, values, null, null);
+            } else {
+                if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    pendingImageBase64 = base64Data;
+                    pendingImageFileName = safeName;
+                    requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
+                    bitmap.recycle();
+                    return;
+                }
+                File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "SNTT");
+                if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("Cannot create Pictures/SNTT directory");
+                File file = new File(dir, safeName);
+                try (FileOutputStream out = new FileOutputStream(file)) {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+                }
+                savedUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, savedUri));
+            }
+            bitmap.recycle();
+            Toast.makeText(this, "ছবি Pictures/SNTT ফোল্ডারে সেভ হয়েছে", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "ছবি সেভ হয়নি: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String pendingImageBase64;
+    private String pendingImageFileName;
+    private static final int REQUEST_STORAGE_PERMISSION = 701;
+
+    private void shareScreenshotFromWeb(String base64Data, String fileName) {
+        try {
+            byte[] bytes = Base64.getDecoder().decode(base64Data);
+            File dir = new File(getCacheDir(), "shared_images");
+            if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("Cannot create share cache");
+            String safeName = fileName == null || fileName.trim().isEmpty() ? "Advance_Oil_Calculator.png" : fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+            if (!safeName.toLowerCase().endsWith(".png")) safeName += ".png";
+            File file = new File(dir, safeName);
+            try (FileOutputStream out = new FileOutputStream(file)) { out.write(bytes); }
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType("image/png");
+            intent.putExtra(Intent.EXTRA_STREAM, uri);
+            intent.putExtra(Intent.EXTRA_SUBJECT, "Advance Oil Calculator");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(intent, "ছবি শেয়ার করুন"));
+        } catch (Exception e) {
+            Toast.makeText(this, "শেয়ার খোলা যায়নি: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_STORAGE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && pendingImageBase64 != null) {
+                String data = pendingImageBase64;
+                String name = pendingImageFileName;
+                pendingImageBase64 = null;
+                pendingImageFileName = null;
+                saveScreenshotFromWeb(data, name);
+            } else {
+                Toast.makeText(this, "ছবি সেভ করতে Storage permission দরকার", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     public void loadHomeUI() {
