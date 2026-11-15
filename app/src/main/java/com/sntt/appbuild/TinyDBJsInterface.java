@@ -10,6 +10,7 @@ public class TinyDBJsInterface {
     public interface Listener {
         void onRequestDownload();
         void onShipSelected(String shipJson);
+        void onOpenTool(String tinyDbTag);
         void onGoHome();
         void onShowToast(String message);
     }
@@ -115,6 +116,13 @@ public class TinyDBJsInterface {
     public void onShipSelected(String shipJson) {
         if (listener != null) {
             listener.onShipSelected(shipJson);
+        }
+    }
+
+    @JavascriptInterface
+    public void openTool(String tinyDbTag) {
+        if (listener != null && tinyDbTag != null) {
+            listener.onOpenTool(tinyDbTag);
         }
     }
 
