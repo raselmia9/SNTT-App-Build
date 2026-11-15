@@ -115,6 +115,11 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onOpenTool(String tinyDbTag) {
+                mainHandler.post(() -> openStoredTool(tinyDbTag));
+            }
+
+            @Override
             public void onGoHome() {
                 mainHandler.post(() -> loadHomeUI());
             }
@@ -182,6 +187,16 @@ public class MainActivity extends AppCompatActivity {
                     + "</div></body></html>";
             webView.loadDataWithBaseURL("https://sntt.local/", welcomeHtml, "text/html", "UTF-8", null);
         }
+    }
+
+    private void openStoredTool(String tinyDbTag) {
+        String toolHtml = tinyDB.getString(tinyDbTag, "");
+        if (toolHtml.isEmpty()) {
+            Toast.makeText(this, "Tool not downloaded yet. Please use the download button first.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        isHomeView = false;
+        webView.loadDataWithBaseURL("https://sntt.local/", toolHtml, "text/html", "UTF-8", null);
     }
 
     private void handleShipSelection(String shipJson) {
