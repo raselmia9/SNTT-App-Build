@@ -15,7 +15,7 @@ import androidx.core.content.FileProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.Base64;
+import android.util.Base64;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -189,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void saveScreenshotFromWeb(String base64Data, String fileName) {
         try {
-            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            byte[] imageBytes = Base64.decode(base64Data, Base64.DEFAULT);
             Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
             if (bitmap == null) throw new IllegalArgumentException("Invalid screenshot image");
 
@@ -213,10 +213,10 @@ public class MainActivity extends AppCompatActivity {
                 values.put(MediaStore.Images.Media.IS_PENDING, 0);
                 getContentResolver().update(savedUri, values, null, null);
             } else {
-                if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     pendingImageBase64 = base64Data;
                     pendingImageFileName = safeName;
-                    requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
+                    androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
                     bitmap.recycle();
                     return;
                 }
@@ -242,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void shareScreenshotFromWeb(String base64Data, String fileName) {
         try {
-            byte[] bytes = Base64.getDecoder().decode(base64Data);
+            byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
             File dir = new File(getCacheDir(), "shared_images");
             if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("Cannot create share cache");
             String safeName = fileName == null || fileName.trim().isEmpty() ? "Advance_Oil_Calculator.png" : fileName.replaceAll("[^A-Za-z0-9._-]", "_");
