@@ -248,19 +248,32 @@ public class MainActivity extends AppCompatActivity {
             if (!safeName.toLowerCase().endsWith(".png")) safeName += ".png";
             File file = new File(dir, safeName);
             try (FileOutputStream out = new FileOutputStream(file)) { out.write(bytes); }
-            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+
+            String authority = getPackageName() + ".fileprovider";
+            Uri uri;
+            try {
+                uri = FileProvider.getUriForFile(this, authority, file);
+            } catch (IllegalArgumentException e1) {
+                uri = FileProvider.getUriForFile(this, "com.sntt.appbuild.fileprovider", file);
+            }
+
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("image/png");
             intent.putExtra(Intent.EXTRA_STREAM, uri);
             intent.putExtra(Intent.EXTRA_SUBJECT, "Advance Oil Calculator");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                intent.setClipData(android.content.ClipData.newRawUri("Screenshot", uri));
+            }
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(intent, "ছবি শেয়ার করুন"));
+
+            Intent chooser = Intent.createChooser(intent, "ছবি শেয়ার করুন");
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(chooser);
         } catch (Exception e) {
-            Toast.makeText(this, "শেয়ার খোলা যায়নি: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "শেয়ার খোলা যায়নি: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
