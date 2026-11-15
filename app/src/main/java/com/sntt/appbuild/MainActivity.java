@@ -203,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // Clean url
-                String cleanUrl = rawUrl.trim().replaceAll("\s+", "");
+                String cleanUrl = rawUrl.trim().replaceAll("\\s+", "");
                 if (cleanUrl.startsWith("Https://")) {
                     cleanUrl = "https://" + cleanUrl.substring(8);
                 }
