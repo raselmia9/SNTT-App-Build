@@ -13,6 +13,8 @@ public class TinyDBJsInterface {
         void onOpenTool(String tinyDbTag);
         void onGoHome();
         void onShowToast(String message);
+        void onSaveImage(String base64Data, String fileName);
+        void onShareImage(String base64Data, String fileName);
     }
 
     private final TinyDB tinyDB;
@@ -144,6 +146,20 @@ public class TinyDBJsInterface {
     public void showToast(String message) {
         if (listener != null) {
             listener.onShowToast(message);
+        }
+    }
+
+    @JavascriptInterface
+    public void saveImage(String base64Data, String fileName) {
+        if (listener != null) {
+            listener.onSaveImage(base64Data, fileName);
+        }
+    }
+
+    @JavascriptInterface
+    public void shareImage(String base64Data, String fileName) {
+        if (listener != null) {
+            listener.onShareImage(base64Data, fileName);
         }
     }
 }
