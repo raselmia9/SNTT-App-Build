@@ -226,8 +226,7 @@ public class MainActivity extends AppCompatActivity {
                 try (FileOutputStream out = new FileOutputStream(file)) {
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
                 }
-                savedUri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
-                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, savedUri));
+                android.media.MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, new String[]{"image/png"}, null);
             }
             bitmap.recycle();
             Toast.makeText(this, "ছবি Pictures/SNTT ফোল্ডারে সেভ হয়েছে", Toast.LENGTH_LONG).show();
