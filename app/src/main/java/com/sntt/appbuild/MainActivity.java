@@ -31,7 +31,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -147,22 +146,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void injectBridgesAndSync(WebView view) {
-        StringBuilder js = new StringBuilder();
-        js.append("(function() {");
-        js.append("  if (!window.AppInventor) {");
-        js.append("    window.AppInventor = {");
-        js.append("      setWebViewString: function(s) { if(window.TinyDB) window.TinyDB.setWebViewString(s); },");
-        js.append("      getWebViewString: function() { return window.TinyDB ? window.TinyDB.getWebViewString() : ''; }");
-        js.append("    };");
-        js.append("  }");
-        // Sync tags into localStorage
-        Map<String, ?> all = tinyDB.getAll();
-        for (String key : all.keySet()) {
-            String safeKey = key.replace("'", "\\'");
-            js.append("  try { localStorage.setItem('").append(safeKey).append("', window.TinyDB.getValue('").append(safeKey).append("')); } catch(e){}");
-        }
-        js.append("})();");
-        view.evaluateJavascript(js.toString(), null);
+        String js = "(function() {"
+                + "  if (!window.AppInventor) {"
+                + "    window.AppInventor = {"
+                + "      setWebViewString: function(s) { if(window.TinyDB) window.TinyDB.setWebViewString(s); },"
+                + "      getWebViewString: function() { return window.TinyDB ? window.TinyDB.getWebViewString() : ''; }"
+                + "    };"
+                + "  }"
+                + "})();";
+        view.evaluateJavascript(js, null);
     }
 
     public void loadHomeUI() {
@@ -171,24 +163,23 @@ public class MainActivity extends AppCompatActivity {
         if (!homeHtml.isEmpty()) {
             webView.loadDataWithBaseURL("https://sntt.local/", homeHtml, "text/html", "UTF-8", null);
         } else {
-            // Friendly welcome placeholder prompting download
-            String welcomeHtml = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
-                    "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-                    "<style>" +
-                    "*{box-sizing:border-box}body{margin:0;padding:24px 16px;font-family:Arial,sans-serif;background:#f1f5f9;color:#1e293b;display:flex;align-items:center;justify-content:center;min-height:85vh;text-align:center;}" +
-                    ".card{background:#ffffff;border-radius:18px;padding:32px 20px;max-width:380px;box-shadow:0 10px 25px rgba(0,0,0,0.06);border:1px solid #e2e8f0;}" +
-                    ".badge{display:inline-block;padding:5px 14px;border-radius:20px;background:#e0f2fe;color:#0284c7;font-size:12px;font-weight:700;margin-bottom:14px;}" +
-                    "h1{color:#1e3a8a;font-size:22px;margin:0 0 10px;font-weight:800;}" +
-                    "p{color:#64748b;font-size:14px;line-height:1.5;margin:0 0 24px;}" +
-                    ".btn{display:inline-block;width:100%;padding:14px 18px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.3);}" +
-                    ".btn:active{transform:scale(0.98);}" +
-                    "</style></head><body>" +
-                    "<div class='card'>" +
-                    "<span class='badge'>SNTT App Build</span>" +
-                    "<h1>স্বাগতম</h1>" +
-                    "<p>আপনার অ্যাপ্লিকেশনের ডাটাবেজ এবং ইউআই লোড করতে উপরের ডাউনলোড আইকন অথবা নিচের বাটনে চাপ দিন।</p>" +
-                    "<button class='btn' onclick='if(window.Android) window.Android.startDownload();'>📥 ডাউনলোড শুরু করুন</button>" +
-                    "</div></body></html>";
+            String welcomeHtml = "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                    + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                    + "<style>"
+                    + "*{box-sizing:border-box}body{margin:0;padding:24px 16px;font-family:Arial,sans-serif;background:#f1f5f9;color:#1e293b;display:flex;align-items:center;justify-content:center;min-height:85vh;text-align:center;}"
+                    + ".card{background:#ffffff;border-radius:18px;padding:32px 20px;max-width:380px;box-shadow:0 10px 25px rgba(0,0,0,0.06);border:1px solid #e2e8f0;}"
+                    + ".badge{display:inline-block;padding:5px 14px;border-radius:20px;background:#e0f2fe;color:#0284c7;font-size:12px;font-weight:700;margin-bottom:14px;}"
+                    + "h1{color:#1e3a8a;font-size:22px;margin:0 0 10px;font-weight:800;}"
+                    + "p{color:#64748b;font-size:14px;line-height:1.5;margin:0 0 24px;}"
+                    + ".btn{display:inline-block;width:100%;padding:14px 18px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.3);}"
+                    + ".btn:active{transform:scale(0.98);}"
+                    + "</style></head><body>"
+                    + "<div class='card'>"
+                    + "<span class='badge'>SNTT App Build</span>"
+                    + "<h1>স্বাগতম</h1>"
+                    + "<p>আপনার অ্যাপ্লিকেশনের ডাটাবেজ এবং ইউআই লোড করতে উপরের ডাউনলোড আইকন অথবা নিচের বাটনে চাপ দিন।</p>"
+                    + "<button class='btn' onclick='if(window.Android) window.Android.startDownload();'>📥 ডাউনলোড শুরু করুন</button>"
+                    + "</div></body></html>";
             webView.loadDataWithBaseURL("https://sntt.local/", welcomeHtml, "text/html", "UTF-8", null);
         }
     }
@@ -272,7 +263,6 @@ public class MainActivity extends AppCompatActivity {
         executorService.execute(() -> {
             List<DownloadItem> downloadItemList = new ArrayList<>();
             try {
-                // Fetch the dynamic JSON list
                 String jsonListContent = downloadUrlContent(JSON_LIST_URL);
                 if (jsonListContent == null || jsonListContent.trim().isEmpty()) {
                     throw new Exception("Empty response from JSON list URL");
@@ -334,8 +324,7 @@ public class MainActivity extends AppCompatActivity {
                     continue;
                 }
 
-                // Clean url
-                String cleanUrl = rawUrl.trim().replaceAll("\s+", "");
+                String cleanUrl = rawUrl.trim().replaceAll("\\s+", "");
                 if (cleanUrl.startsWith("Https://")) {
                     cleanUrl = "https://" + cleanUrl.substring(8);
                 }
@@ -371,10 +360,8 @@ public class MainActivity extends AppCompatActivity {
                 tvDetailStatus.setText("All items synchronized to TinyDB.");
                 Toast.makeText(MainActivity.this, "Download finished! " + successCount + " items saved.", Toast.LENGTH_SHORT).show();
 
-                // If SNTT HOME UI was saved, load it!
                 loadHomeUI();
 
-                // Auto-hide progress card after 4 seconds
                 mainHandler.postDelayed(() -> cardProgress.setVisibility(View.GONE), 4000);
             });
         });
@@ -407,8 +394,7 @@ public class MainActivity extends AppCompatActivity {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                sb.append(line).append("
-");
+                sb.append(line).append((char) 10);
             }
             return sb.toString();
         } finally {

@@ -87,7 +87,7 @@ public class TinyDBJsInterface {
             obj.put("tags", tagArray);
             return obj.toString();
         } catch (Exception e) {
-            return "{"tagCount":0}";
+            return "{}";
         }
     }
 
