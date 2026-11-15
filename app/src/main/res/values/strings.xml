@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">SNTT App Build</string>
     <string name="action_download">Download All</string>
-    <string name="download_ready">Ready to download (16 items)</string>
+    <string name="download_ready">Ready to download</string>
     <string name="downloading_progress">Downloading %1$d of %2$d: %3$s</string>
     <string name="download_finished">Download process finished</string>
 </resources>

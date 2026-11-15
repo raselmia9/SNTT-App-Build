@@ -1,23 +1,27 @@
 package com.sntt.appbuild;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.ConsoleMessage;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Button;
-import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+import androidx.cardview.widget.CardView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -27,25 +31,29 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String JSON_LIST_URL = "https://raw.githubusercontent.com/raselmia9/SNTT-ALL-DATA/refs/heads/main/SNTT%20Download%20List.json";
+    private static final String TAG_HOME_UI = "SNTT HOME UI.html";
+    private static final String TAG_CALIBRATION_TEMPLATE = "Ship Calibration.html";
+
     private TinyDB tinyDB;
-    private List<DownloadItem> downloadItemList;
-    private DownloadAdapter adapter;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    private CardView cardProgress;
     private ProgressBar progressBar;
-    private TextView tvOverallStatus, tvCountSuccess, tvCountFailed, tvCountSkipped;
-    private Button btnStartDownload;
-    private RecyclerView recyclerView;
-    private FrameLayout webViewContainer;
+    private TextView tvOverallStatus, tvDetailStatus;
+    private LinearLayout layoutCounters;
+    private TextView tvCountSuccess, tvCountFailed, tvCountSkipped;
     private WebView webView;
 
     private boolean isDownloading = false;
+    private boolean isHomeView = true;
     private int successCount = 0;
     private int failedCount = 0;
     private int skippedCount = 0;
@@ -63,67 +71,159 @@ public class MainActivity extends AppCompatActivity {
         tinyDB = new TinyDB(this);
 
         initViews();
-        setupDataList();
         setupWebView();
+        loadHomeUI();
     }
 
     private void initViews() {
+        cardProgress = findViewById(R.id.cardProgress);
         progressBar = findViewById(R.id.progressBar);
         tvOverallStatus = findViewById(R.id.tvOverallStatus);
+        tvDetailStatus = findViewById(R.id.tvDetailStatus);
+        layoutCounters = findViewById(R.id.layoutCounters);
         tvCountSuccess = findViewById(R.id.tvCountSuccess);
         tvCountFailed = findViewById(R.id.tvCountFailed);
         tvCountSkipped = findViewById(R.id.tvCountSkipped);
-        btnStartDownload = findViewById(R.id.btnStartDownload);
-        recyclerView = findViewById(R.id.recyclerView);
-        webViewContainer = findViewById(R.id.webViewContainer);
         webView = findViewById(R.id.webView);
-
-        btnStartDownload.setOnClickListener(v -> startDownloadAll());
     }
 
-    private void setupDataList() {
-        downloadItemList = new ArrayList<>();
-        downloadItemList.add(new DownloadItem("SNTT All Tank", "https://drive.usercontent.google.com/download?id=1tC4GRaIBjzhqBl9Ry7UEww4dm0d3iEXl&export=download"));
-        downloadItemList.add(new DownloadItem("SGTT All Tank", "None"));
-        downloadItemList.add(new DownloadItem("BAT 01", "https://drive.usercontent.google.com/download?id=1QzFs2cm2h7MRl1Up9aopP-Zc80Jh4rID&export=download"));
-        downloadItemList.add(new DownloadItem("BAT 02", "https://drive.usercontent.google.com/download?id=1qcPEZtSlXuyRxL5-d6VptbIHA2HrXHHv&export=download"));
-        downloadItemList.add(new DownloadItem("BAT 03", "https://drive.usercontent.google.com/download?id=18E1cdvNdCVfaPNF4CjfMZXlfK9bDH6ke&export=download"));
-        downloadItemList.add(new DownloadItem("Binzaman 01", "https://drive.usercontent.google.com/download?id=1q08_ENZYdDib20Hgh_zDU9kUeekmiff1&export=download"));
-        downloadItemList.add(new DownloadItem("Binzaman 02", "https://drive.usercontent.google.com/download?id=1WlQxR_z2x92Z0VxMO7wIulxdxyrGmip4&export=download"));
-        downloadItemList.add(new DownloadItem("Binzaman 03", "https://drive.usercontent.google.com/download?id=1XqSkpBntZMQRA8A3u48257M3qQGQRKGb&export=download"));
-        downloadItemList.add(new DownloadItem("Binzaman 04", "https://drive.usercontent.google.com/download?id=1_HDEyU8mBLdbIVLJFXjK67Rc6I2Xlkhy&export=download"));
-        downloadItemList.add(new DownloadItem("Mesra", "https://drive.usercontent.google.com/download?id=13vHg3LGq3p_WWYlwI1ppzIbYCcvpqVx2&export=download"));
-        downloadItemList.add(new DownloadItem("Kingfisher 03", "https://drive.usercontent.google.com/download?id=1ePwDVkpswBPu-3lvkGyj0lOzZWPADWHn&export=download"));
-        downloadItemList.add(new DownloadItem("Kingfisher 04", "https://drive.usercontent.google.com/download?id=1dCtgC1gNWNFyRUN0N9oXLSijdtKwfmHM&export=download"));
-        downloadItemList.add(new DownloadItem("M.T Rukh", "https://drive.usercontent.google.com/download?id=1BKKmBYon3VFg04KKu2pSdLyCyicemnmd&export=download"));
-        downloadItemList.add(new DownloadItem("Shanghai 07", "https://drive.usercontent.google.com/download?id=1N9tvzfOR3xJxh1-8_P6ITdZofaQkZvtv&export=download"));
-        downloadItemList.add(new DownloadItem("O.T SHANGHAI-01", "https://drive.usercontent.google.com/download?id=1vzSKqSiwNlSuYJDygiBYWafF0tFne2WE&export=download"));
-        downloadItemList.add(new DownloadItem("SNTT HOME UI.html", "https://raw.githubusercontent.com/raselmia9/SNTT-ALL-DATA/refs/heads/main/SNTT%20Home%20New.html"));
+    @SuppressLint("SetJavaScriptEnabled")
+    private void setupWebView() {
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        // Check if already in TinyDB
-        for (DownloadItem item : downloadItemList) {
-            if (tinyDB.hasTag(item.getTinyDbName())) {
-                item.setStatus(DownloadItem.Status.COMPLETED);
-                item.setMessage("Already cached in TinyDB");
+        TinyDBJsInterface jsBridge = new TinyDBJsInterface(tinyDB, new TinyDBJsInterface.Listener() {
+            @Override
+            public void onRequestDownload() {
+                mainHandler.post(() -> startDownloadAll());
             }
+
+            @Override
+            public void onShipSelected(String shipJson) {
+                mainHandler.post(() -> handleShipSelection(shipJson));
+            }
+
+            @Override
+            public void onGoHome() {
+                mainHandler.post(() -> loadHomeUI());
+            }
+
+            @Override
+            public void onShowToast(String message) {
+                mainHandler.post(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+            }
+        });
+
+        webView.addJavascriptInterface(jsBridge, "TinyDB");
+        webView.addJavascriptInterface(jsBridge, "Android");
+        webView.addJavascriptInterface(jsBridge, "AppInventor");
+
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                injectBridgesAndSync(view);
+            }
+        });
+
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                return super.onConsoleMessage(consoleMessage);
+            }
+        });
+    }
+
+    private void injectBridgesAndSync(WebView view) {
+        StringBuilder js = new StringBuilder();
+        js.append("(function() {");
+        js.append("  if (!window.AppInventor) {");
+        js.append("    window.AppInventor = {");
+        js.append("      setWebViewString: function(s) { if(window.TinyDB) window.TinyDB.setWebViewString(s); },");
+        js.append("      getWebViewString: function() { return window.TinyDB ? window.TinyDB.getWebViewString() : ''; }");
+        js.append("    };");
+        js.append("  }");
+        // Sync tags into localStorage
+        Map<String, ?> all = tinyDB.getAll();
+        for (String key : all.keySet()) {
+            String safeKey = key.replace("'", "\\'");
+            js.append("  try { localStorage.setItem('").append(safeKey).append("', window.TinyDB.getValue('").append(safeKey).append("')); } catch(e){}");
+        }
+        js.append("})();");
+        view.evaluateJavascript(js.toString(), null);
+    }
+
+    public void loadHomeUI() {
+        isHomeView = true;
+        String homeHtml = tinyDB.getString(TAG_HOME_UI, "");
+        if (!homeHtml.isEmpty()) {
+            webView.loadDataWithBaseURL("https://sntt.local/", homeHtml, "text/html", "UTF-8", null);
+        } else {
+            // Friendly welcome placeholder prompting download
+            String welcomeHtml = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+                    "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+                    "<style>" +
+                    "*{box-sizing:border-box}body{margin:0;padding:24px 16px;font-family:Arial,sans-serif;background:#f1f5f9;color:#1e293b;display:flex;align-items:center;justify-content:center;min-height:85vh;text-align:center;}" +
+                    ".card{background:#ffffff;border-radius:18px;padding:32px 20px;max-width:380px;box-shadow:0 10px 25px rgba(0,0,0,0.06);border:1px solid #e2e8f0;}" +
+                    ".badge{display:inline-block;padding:5px 14px;border-radius:20px;background:#e0f2fe;color:#0284c7;font-size:12px;font-weight:700;margin-bottom:14px;}" +
+                    "h1{color:#1e3a8a;font-size:22px;margin:0 0 10px;font-weight:800;}" +
+                    "p{color:#64748b;font-size:14px;line-height:1.5;margin:0 0 24px;}" +
+                    ".btn{display:inline-block;width:100%;padding:14px 18px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,0.3);}" +
+                    ".btn:active{transform:scale(0.98);}" +
+                    "</style></head><body>" +
+                    "<div class='card'>" +
+                    "<span class='badge'>SNTT App Build</span>" +
+                    "<h1>স্বাগতম</h1>" +
+                    "<p>আপনার অ্যাপ্লিকেশনের ডাটাবেজ এবং ইউআই লোড করতে উপরের ডাউনলোড আইকন অথবা নিচের বাটনে চাপ দিন।</p>" +
+                    "<button class='btn' onclick='if(window.Android) window.Android.startDownload();'>📥 ডাউনলোড শুরু করুন</button>" +
+                    "</div></body></html>";
+            webView.loadDataWithBaseURL("https://sntt.local/", welcomeHtml, "text/html", "UTF-8", null);
+        }
+    }
+
+    private void handleShipSelection(String shipJson) {
+        try {
+            JSONObject obj = new JSONObject(shipJson);
+            String shipName = obj.optString("Ship Name", "");
+            int tankCount = obj.optInt("Tank C", 8);
+            openShipCalibration(shipName, tankCount);
+        } catch (Exception e) {
+            Toast.makeText(this, "Ship selection error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openShipCalibration(String shipName, int tankCount) {
+        String template = tinyDB.getString(TAG_CALIBRATION_TEMPLATE, "");
+        if (template.isEmpty()) {
+            Toast.makeText(this, "Ship Calibration template not downloaded yet. Please download first.", Toast.LENGTH_LONG).show();
+            return;
         }
 
-        progressBar.setMax(downloadItemList.size());
-        adapter = new DownloadAdapter(this, downloadItemList);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(adapter);
-    }
+        String shipData = tinyDB.getString(shipName, "");
+        if (shipData.isEmpty()) {
+            Toast.makeText(this, "Calibration data for '" + shipName + "' not found in TinyDB. Please download data first.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
-    private void setupWebView() {
-        WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setAllowFileAccess(true);
-        webSettings.setAllowContentAccess(true);
-        webSettings.setDatabaseEnabled(true);
+        isHomeView = false;
+        String populatedHtml = template
+                .replace("?Ship Name?", shipName)
+                .replace("...Total Tank...", String.valueOf(tankCount))
+                .replace("/*PUT_JSON_STRING_HERE*/", shipData);
 
-        webView.addJavascriptInterface(new TinyDBJsInterface(tinyDB), "TinyDB");
-        webView.setWebViewClient(new WebViewClient());
+        webView.loadDataWithBaseURL("https://sntt.local/", populatedHtml, "text/html", "UTF-8", null);
     }
 
     @Override
@@ -137,64 +237,96 @@ public class MainActivity extends AppCompatActivity {
         if (item.getItemId() == R.id.action_download) {
             startDownloadAll();
             return true;
-        } else if (item.getItemId() == R.id.action_toggle_view) {
-            toggleWebView();
+        } else if (item.getItemId() == R.id.action_home) {
+            loadHomeUI();
+            return true;
+        } else if (item.getItemId() == R.id.action_refresh) {
+            if (isHomeView) {
+                loadHomeUI();
+            } else {
+                webView.reload();
+            }
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void toggleWebView() {
-        if (webViewContainer.getVisibility() == View.VISIBLE) {
-            webViewContainer.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
-            findViewById(R.id.cardProgress).setVisibility(View.VISIBLE);
-        } else {
-            // Load SNTT HOME UI.html from TinyDB if available
-            String homeHtml = tinyDB.getString("SNTT HOME UI.html", "");
-            if (!homeHtml.isEmpty()) {
-                webView.loadDataWithBaseURL(null, homeHtml, "text/html", "UTF-8", null);
-            } else {
-                webView.loadUrl("https://raw.githubusercontent.com/raselmia9/SNTT-ALL-DATA/refs/heads/main/SNTT%20Home%20New.html");
-            }
-            webViewContainer.setVisibility(View.VISIBLE);
-            recyclerView.setVisibility(View.GONE);
-            findViewById(R.id.cardProgress).setVisibility(View.GONE);
-        }
-    }
-
-    private void startDownloadAll() {
+    public void startDownloadAll() {
         if (isDownloading) {
             Toast.makeText(this, "Download already in progress...", Toast.LENGTH_SHORT).show();
             return;
         }
 
         isDownloading = true;
-        btnStartDownload.setEnabled(false);
+        cardProgress.setVisibility(View.VISIBLE);
+        layoutCounters.setVisibility(View.GONE);
+        progressBar.setIndeterminate(true);
+        tvOverallStatus.setText("Downloading JSON list...");
+        tvDetailStatus.setText("Connecting to server to retrieve download items...");
+
         successCount = 0;
         failedCount = 0;
         skippedCount = 0;
-        progressBar.setProgress(0);
         updateCounters();
 
         executorService.execute(() -> {
-            for (int i = 0; i < downloadItemList.size(); i++) {
+            List<DownloadItem> downloadItemList = new ArrayList<>();
+            try {
+                // Fetch the dynamic JSON list
+                String jsonListContent = downloadUrlContent(JSON_LIST_URL);
+                if (jsonListContent == null || jsonListContent.trim().isEmpty()) {
+                    throw new Exception("Empty response from JSON list URL");
+                }
+
+                JSONArray jsonArray = new JSONArray(jsonListContent);
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject obj = jsonArray.getJSONObject(i);
+                    String name = obj.optString("TinyDB Name", "").trim();
+                    String link = obj.optString("File Link", "").trim();
+                    if (!name.isEmpty()) {
+                        downloadItemList.add(new DownloadItem(name, link));
+                    }
+                }
+
+                if (downloadItemList.isEmpty()) {
+                    throw new Exception("No valid items found in JSON list");
+                }
+
+            } catch (Exception e) {
+                final String err = e.getMessage() != null ? e.getMessage() : "Failed to fetch list";
+                mainHandler.post(() -> {
+                    isDownloading = false;
+                    progressBar.setIndeterminate(false);
+                    tvOverallStatus.setText("Download list fetch failed");
+                    tvDetailStatus.setText(err);
+                    Toast.makeText(MainActivity.this, "Error: " + err, Toast.LENGTH_LONG).show();
+                    mainHandler.postDelayed(() -> cardProgress.setVisibility(View.GONE), 3000);
+                });
+                return;
+            }
+
+            final int total = downloadItemList.size();
+
+            mainHandler.post(() -> {
+                progressBar.setIndeterminate(false);
+                progressBar.setMax(total);
+                progressBar.setProgress(0);
+                layoutCounters.setVisibility(View.VISIBLE);
+                tvOverallStatus.setText(String.format("List received (%d items). Starting download...", total));
+            });
+
+            for (int i = 0; i < total; i++) {
                 final int index = i;
                 final DownloadItem item = downloadItemList.get(i);
 
                 mainHandler.post(() -> {
-                    item.setStatus(DownloadItem.Status.DOWNLOADING);
-                    item.setMessage("Downloading...");
-                    adapter.notifyItemChanged(index);
-                    tvOverallStatus.setText(String.format("Downloading (%d/%d): %s", index + 1, downloadItemList.size(), item.getTinyDbName()));
+                    tvOverallStatus.setText(String.format("Downloading (%d/%d): %s", index + 1, total, item.getTinyDbName()));
+                    tvDetailStatus.setText("Fetching content...");
                 });
 
                 String rawUrl = item.getFileLink();
                 if (rawUrl == null || rawUrl.trim().equalsIgnoreCase("none") || rawUrl.trim().isEmpty()) {
                     mainHandler.post(() -> {
-                        item.setStatus(DownloadItem.Status.SKIPPED);
-                        item.setMessage("No link available");
-                        adapter.notifyItemChanged(index);
                         skippedCount++;
                         progressBar.setProgress(index + 1);
                         updateCounters();
@@ -203,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // Clean url
-                String cleanUrl = rawUrl.trim().replaceAll("\\s+", "");
+                String cleanUrl = rawUrl.trim().replaceAll("\s+", "");
                 if (cleanUrl.startsWith("Https://")) {
                     cleanUrl = "https://" + cleanUrl.substring(8);
                 }
@@ -211,26 +343,17 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     String content = downloadUrlContent(cleanUrl);
                     if (content != null && !content.isEmpty()) {
-                        // Store into TinyDB under TinyDB Name
                         tinyDB.putString(item.getTinyDbName(), content);
-
                         mainHandler.post(() -> {
-                            item.setStatus(DownloadItem.Status.COMPLETED);
-                            item.setMessage("Saved (" + content.length() + " chars)");
-                            adapter.notifyItemChanged(index);
                             successCount++;
                             progressBar.setProgress(index + 1);
                             updateCounters();
                         });
                     } else {
-                        throw new Exception("Received empty content");
+                        throw new Exception("Empty content");
                     }
                 } catch (Exception e) {
-                    final String errorMsg = e.getMessage() != null ? e.getMessage() : "Download error";
                     mainHandler.post(() -> {
-                        item.setStatus(DownloadItem.Status.FAILED);
-                        item.setMessage(errorMsg);
-                        adapter.notifyItemChanged(index);
                         failedCount++;
                         progressBar.setProgress(index + 1);
                         updateCounters();
@@ -238,15 +361,21 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 try {
-                    Thread.sleep(200); // slight delay for smooth UI progress
+                    Thread.sleep(150);
                 } catch (InterruptedException ignored) {}
             }
 
             mainHandler.post(() -> {
                 isDownloading = false;
-                btnStartDownload.setEnabled(true);
                 tvOverallStatus.setText(String.format("Finished! %d Saved, %d Failed, %d Skipped", successCount, failedCount, skippedCount));
-                Toast.makeText(MainActivity.this, "Download completed!", Toast.LENGTH_SHORT).show();
+                tvDetailStatus.setText("All items synchronized to TinyDB.");
+                Toast.makeText(MainActivity.this, "Download finished! " + successCount + " items saved.", Toast.LENGTH_SHORT).show();
+
+                // If SNTT HOME UI was saved, load it!
+                loadHomeUI();
+
+                // Auto-hide progress card after 4 seconds
+                mainHandler.postDelayed(() -> cardProgress.setVisibility(View.GONE), 4000);
             });
         });
     }
@@ -255,13 +384,12 @@ public class MainActivity extends AppCompatActivity {
         URL url = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(20000);
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(30000);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile; rv:120.0)");
         conn.setInstanceFollowRedirects(true);
 
         int status = conn.getResponseCode();
-        // Handle redirect if needed
         if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
             String newUrl = conn.getHeaderField("Location");
             if (newUrl != null) {
@@ -279,7 +407,8 @@ public class MainActivity extends AppCompatActivity {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
+                sb.append(line).append("
+");
             }
             return sb.toString();
         } finally {
@@ -291,5 +420,16 @@ public class MainActivity extends AppCompatActivity {
         tvCountSuccess.setText("Success: " + successCount);
         tvCountFailed.setText("Failed: " + failedCount);
         tvCountSkipped.setText("Skipped: " + skippedCount);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (!isHomeView) {
+            loadHomeUI();
+        } else if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
     }
 }

@@ -6,46 +6,57 @@
     android:orientation="vertical"
     android:background="@color/background">
 
-    <!-- Progress Card -->
+    <!-- Progress Card (Shown during download) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardProgress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
+        android:layout_margin="10dp"
+        android:visibility="gone"
         app:cardCornerRadius="12dp"
-        app:cardElevation="3dp"
+        app:cardElevation="4dp"
         app:cardBackgroundColor="@color/surface">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="14dp">
 
             <TextView
                 android:id="@+id/tvOverallStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ready to download (16 items)"
-                android:textSize="16sp"
+                android:text="Preparing download..."
+                android:textSize="14sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
+
+            <TextView
+                android:id="@+id/tvDetailStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Connecting..."
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
-                android:layout_height="10dp"
-                android:layout_marginTop="12dp"
-                android:max="16"
-                android:progress="0"
+                android:layout_height="8dp"
+                android:layout_marginTop="10dp"
+                android:indeterminate="true"
                 android:progressTint="@color/accent" />
 
             <LinearLayout
+                android:id="@+id/layoutCounters"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
                 android:weightSum="3">
 
                 <TextView
@@ -56,7 +67,7 @@
                     android:text="Success: 0"
                     android:textColor="@color/success"
                     android:textStyle="bold"
-                    android:textSize="13sp" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/tvCountFailed"
@@ -66,7 +77,7 @@
                     android:text="Failed: 0"
                     android:textColor="@color/error"
                     android:textStyle="bold"
-                    android:textSize="13sp" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/tvCountSkipped"
@@ -76,38 +87,17 @@
                     android:text="Skipped: 0"
                     android:textColor="@color/warning"
                     android:textStyle="bold"
-                    android:textSize="13sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
-
-            <Button
-                android:id="@+id/btnStartDownload"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Start Download All"
-                android:textAllCaps="false"
-                android:backgroundTint="@color/primary"
-                android:textColor="@android:color/white" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- RecyclerView for Items -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingHorizontal="12dp"
-        android:clipToPadding="false"
-        android:paddingBottom="16dp" />
-
-    <!-- WebView Container (Hidden by default, ready for future instructions) -->
+    <!-- Custom WebView Container -->
     <FrameLayout
         android:id="@+id/webViewContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:visibility="gone">
+        android:layout_weight="1">
 
         <WebView
             android:id="@+id/webView"
