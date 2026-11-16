@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String JSON_LIST_URL = "https://raw.githubusercontent.com/raselmia9/SNTT-ALL-DATA/refs/heads/main/SNTT%20Download%20List.json";
     private static final String TAG_HOME_UI = "SNTT HOME UI.html";
     private static final String TAG_CALIBRATION_TEMPLATE = "Ship Calibration.html";
+    private static final String TAG_ALL_TANK_CALIBRATION = "All Tank Calibration.html";
 
     private TinyDB tinyDB;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -329,7 +330,11 @@ public class MainActivity extends AppCompatActivity {
     private void handleShipSelection(String shipJson) {
         try {
             JSONObject obj = new JSONObject(shipJson);
-            String shipName = obj.optString("Ship Name", "");
+            String shipName = obj.optString("Ship Name", "").trim();
+            if ("SNTT All Tank".equalsIgnoreCase(shipName)) {
+                openStoredTool(TAG_ALL_TANK_CALIBRATION);
+                return;
+            }
             int tankCount = obj.optInt("Tank C", 8);
             openShipCalibration(shipName, tankCount);
         } catch (Exception e) {
