@@ -20,6 +20,26 @@ public class TinyDBJsInterface {
     private final TinyDB tinyDB;
     private final Listener listener;
     private String lastWebViewString = "";
+    private volatile boolean modalOpen = false;
+
+    @JavascriptInterface
+    public void setModalOpen(boolean open) {
+        this.modalOpen = open;
+    }
+
+    @JavascriptInterface
+    public void setPopupOpen(boolean open) {
+        this.modalOpen = open;
+    }
+
+    @JavascriptInterface
+    public boolean isModalOpen() {
+        return this.modalOpen;
+    }
+
+    public void resetModalState() {
+        this.modalOpen = false;
+    }
 
     public TinyDBJsInterface(TinyDB tinyDB, Listener listener) {
         this.tinyDB = tinyDB;
