@@ -185,41 +185,45 @@ public class MainActivity extends AppCompatActivity {
                 + "      getWebViewString: function() { return window.TinyDB ? window.TinyDB.getWebViewString() : ''; }"
                 + "    };"
                 + "  }"
+                + "  function isElVisible(el) {"
+                + "    if (!el) return false;"
+                + "    var r = el.getBoundingClientRect();"
+                + "    var st = window.getComputedStyle(el);"
+                + "    return (r.width > 0 && r.height > 0 && st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05);"
+                + "  }"
                 + "  window.isAnyModalOpen = function() {"
                 + "    var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
-                + "    if (sc && (sc.style.display !== 'none' && window.getComputedStyle(sc).display !== 'none')) return true;"
-                + "    var popups = document.querySelectorAll('.screenshot-modal-overlay, .modal, [class*=modal], [id*=modal], [class*=popup], [id*=popup], dialog[open]');"
-                + "    for (var i = 0; i < popups.length; i++) {"
-                + "      var p = popups[i];"
-                + "      if (p === document.body || p === document.documentElement || p.classList.contains('container')) continue;"
-                + "      var st = window.getComputedStyle(p);"
-                + "      if (st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05 && st.position === 'fixed') return true;"
+                + "    if (sc && isElVisible(sc)) return true;"
+                + "    var overlays = document.querySelectorAll('.screenshot-modal-overlay, [class*=modal-overlay], [id*=modal-overlay], [class*=popup-overlay], [id*=popup-overlay], dialog[open]');"
+                + "    for (var i = 0; i < overlays.length; i++) {"
+                + "      var o = overlays[i];"
+                + "      if (o === document.body || o === document.documentElement) continue;"
+                + "      if (isElVisible(o)) return true;"
                 + "    }"
                 + "    return false;"
                 + "  };"
                 + "  window.closeAnyModal = function() {"
+                + "    var closed = false;"
                 + "    var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
-                + "    if (sc && (sc.style.display !== 'none' && window.getComputedStyle(sc).display !== 'none')) {"
-                + "      if (typeof window.closeScreenshotModal === 'function') { window.closeScreenshotModal(); }"
-                + "      else { sc.style.display = 'none'; }"
-                + "      if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { window.TinyDB.setModalOpen(false); }"
-                + "      return true;"
+                + "    if (sc && isElVisible(sc)) {"
+                + "      if (typeof window.closeScreenshotModal === 'function') { try { window.closeScreenshotModal(); } catch(e) {} }"
+                + "      if (sc.parentNode) { sc.parentNode.removeChild(sc); } else { sc.style.display = 'none'; }"
+                + "      closed = true;"
                 + "    }"
-                + "    var popups = document.querySelectorAll('.screenshot-modal-overlay, .modal, [class*=modal], [id*=modal], [class*=popup], [id*=popup], dialog[open]');"
-                + "    for (var i = popups.length - 1; i >= 0; i--) {"
-                + "      var p = popups[i];"
-                + "      if (p === document.body || p === document.documentElement || p.classList.contains('container')) continue;"
-                + "      var st = window.getComputedStyle(p);"
-                + "      if (st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05) {"
-                + "        var btn = p.querySelector('.close, [class*=close], [id*=close], button[onclick*=close]');"
-                + "        if (btn) { btn.click(); }"
-                + "        else if (typeof p.close === 'function') { p.close(); }"
-                + "        else { p.style.display = 'none'; }"
-                + "        if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { window.TinyDB.setModalOpen(false); }"
-                + "        return true;"
+                + "    var overlays = document.querySelectorAll('.screenshot-modal-overlay, [class*=modal-overlay], [id*=modal-overlay], [class*=popup-overlay], [id*=popup-overlay], dialog[open]');"
+                + "    for (var i = overlays.length - 1; i >= 0; i--) {"
+                + "      var o = overlays[i];"
+                + "      if (o === document.body || o === document.documentElement || o.classList.contains('container')) continue;"
+                + "      if (isElVisible(o)) {"
+                + "        var btn = o.querySelector('.close, [class*=close], [id*=close], button[onclick*=close]');"
+                + "        if (btn) { try { btn.click(); } catch(e) {} }"
+                + "        else if (typeof o.close === 'function') { try { o.close(); } catch(e) {} }"
+                + "        if (o.parentNode) { o.parentNode.removeChild(o); } else { o.style.display = 'none'; }"
+                + "        closed = true;"
                 + "      }"
                 + "    }"
-                + "    return false;"
+                + "    if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { try { window.TinyDB.setModalOpen(false); } catch(e) {} }"
+                + "    return closed;"
                 + "  };"
                 + "  try {"
                 + "    var updateBridgeModal = function() {"
@@ -608,33 +612,35 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null) {
-            if (jsBridge != null && jsBridge.isModalOpen()) {
-                dismissActiveModal();
-                return;
-            }
-
-            webView.evaluateJavascript(
-                "(function() {"
-                + "  if (typeof window.closeAnyModal === 'function') { return window.closeAnyModal(); }"
-                + "  if (typeof window.closeScreenshotModal === 'function') {"
-                + "    var o = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
-                + "    if (o && o.style.display !== 'none') { window.closeScreenshotModal(); return true; }"
-                + "  }"
-                + "  return false;"
-                + "})();",
-                value -> {
-                    if ("true".equals(value)) {
-                        if (jsBridge != null) jsBridge.resetModalState();
-                        return;
-                    }
-                    handleStandardBack();
-                }
-            );
+        if (webView == null) {
+            handleStandardBack();
             return;
         }
 
-        handleStandardBack();
+        webView.evaluateJavascript(
+            "(function() {"
+            + "  if (typeof window.closeAnyModal === 'function') { return window.closeAnyModal(); }"
+            + "  var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+            + "  if (sc) {"
+            + "    var r = sc.getBoundingClientRect();"
+            + "    var st = window.getComputedStyle(sc);"
+            + "    if (r.width > 0 && r.height > 0 && st.display !== 'none' && st.visibility !== 'hidden') {"
+            + "      if (typeof window.closeScreenshotModal === 'function') { try { window.closeScreenshotModal(); } catch(e) {} }"
+            + "      if (sc.parentNode) { sc.parentNode.removeChild(sc); } else { sc.style.display = 'none'; }"
+            + "      return true;"
+            + "    }"
+            + "  }"
+            + "  return false;"
+            + "})();",
+            value -> {
+                if ("true".equals(value)) {
+                    if (jsBridge != null) jsBridge.resetModalState();
+                    return;
+                }
+                if (jsBridge != null) jsBridge.resetModalState();
+                handleStandardBack();
+            }
+        );
     }
 
     private void dismissActiveModal() {
@@ -645,9 +651,12 @@ public class MainActivity extends AppCompatActivity {
             webView.evaluateJavascript(
                 "(function() {"
                 + "  if (typeof window.closeAnyModal === 'function') { return window.closeAnyModal(); }"
-                + "  if (typeof window.closeScreenshotModal === 'function') { window.closeScreenshotModal(); return true; }"
-                + "  var o = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
-                + "  if (o) { o.style.display = 'none'; return true; }"
+                + "  var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+                + "  if (sc) {"
+                + "    if (typeof window.closeScreenshotModal === 'function') { try { window.closeScreenshotModal(); } catch(e) {} }"
+                + "    if (sc.parentNode) { sc.parentNode.removeChild(sc); } else { sc.style.display = 'none'; }"
+                + "    return true;"
+                + "  }"
                 + "  return false;"
                 + "})();", null
             );
