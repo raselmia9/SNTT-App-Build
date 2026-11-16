@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout layoutCounters;
     private TextView tvCountSuccess, tvCountFailed, tvCountSkipped;
     private WebView webView;
+    private TinyDBJsInterface jsBridge;
 
     private boolean isDownloading = false;
     private boolean isHomeView = true;
@@ -119,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        TinyDBJsInterface jsBridge = new TinyDBJsInterface(tinyDB, new TinyDBJsInterface.Listener() {
+        jsBridge = new TinyDBJsInterface(tinyDB, new TinyDBJsInterface.Listener() {
             @Override
             public void onRequestDownload() {
                 mainHandler.post(() -> startDownloadAll());
@@ -184,6 +185,55 @@ public class MainActivity extends AppCompatActivity {
                 + "      getWebViewString: function() { return window.TinyDB ? window.TinyDB.getWebViewString() : ''; }"
                 + "    };"
                 + "  }"
+                + "  window.isAnyModalOpen = function() {"
+                + "    var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+                + "    if (sc && (sc.style.display !== 'none' && window.getComputedStyle(sc).display !== 'none')) return true;"
+                + "    var popups = document.querySelectorAll('.screenshot-modal-overlay, .modal, [class*="modal"], [id*="modal"], [class*="popup"], [id*="popup"], dialog[open]');"
+                + "    for (var i = 0; i < popups.length; i++) {"
+                + "      var p = popups[i];"
+                + "      if (p === document.body || p === document.documentElement || p.classList.contains('container')) continue;"
+                + "      var st = window.getComputedStyle(p);"
+                + "      if (st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05 && st.position === 'fixed') return true;"
+                + "    }"
+                + "    return false;"
+                + "  };"
+                + "  window.closeAnyModal = function() {"
+                + "    var sc = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+                + "    if (sc && (sc.style.display !== 'none' && window.getComputedStyle(sc).display !== 'none')) {"
+                + "      if (typeof window.closeScreenshotModal === 'function') { window.closeScreenshotModal(); }"
+                + "      else { sc.style.display = 'none'; }"
+                + "      if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { window.TinyDB.setModalOpen(false); }"
+                + "      return true;"
+                + "    }"
+                + "    var popups = document.querySelectorAll('.screenshot-modal-overlay, .modal, [class*="modal"], [id*="modal"], [class*="popup"], [id*="popup"], dialog[open]');"
+                + "    for (var i = popups.length - 1; i >= 0; i--) {"
+                + "      var p = popups[i];"
+                + "      if (p === document.body || p === document.documentElement || p.classList.contains('container')) continue;"
+                + "      var st = window.getComputedStyle(p);"
+                + "      if (st.display !== 'none' && st.visibility !== 'hidden' && parseFloat(st.opacity || '1') > 0.05) {"
+                + "        var btn = p.querySelector('.close, [class*="close"], [id*="close"], button[onclick*="close"]');"
+                + "        if (btn) { btn.click(); }"
+                + "        else if (typeof p.close === 'function') { p.close(); }"
+                + "        else { p.style.display = 'none'; }"
+                + "        if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { window.TinyDB.setModalOpen(false); }"
+                + "        return true;"
+                + "      }"
+                + "    }"
+                + "    return false;"
+                + "  };"
+                + "  try {"
+                + "    var updateBridgeModal = function() {"
+                + "      var open = window.isAnyModalOpen();"
+                + "      if (window.TinyDB && typeof window.TinyDB.setModalOpen === 'function') { window.TinyDB.setModalOpen(open); }"
+                + "    };"
+                + "    var obs = new MutationObserver(updateBridgeModal);"
+                + "    obs.observe(document.body || document.documentElement, {"
+                + "      childList: true,"
+                + "      subtree: true,"
+                + "      attributes: true,"
+                + "      attributeFilter: ['style', 'class']"
+                + "    });"
+                + "  } catch(e) {}"
                 + "})();";
         view.evaluateJavascript(js, null);
     }
@@ -318,6 +368,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openStoredTool(String tinyDbTag) {
+        if (jsBridge != null) jsBridge.resetModalState();
         String toolHtml = tinyDB.getString(tinyDbTag, "");
         if (toolHtml.isEmpty()) {
             Toast.makeText(this, "Tool not downloaded yet. Please use the download button first.", Toast.LENGTH_LONG).show();
@@ -557,9 +608,56 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (webView != null) {
+            if (jsBridge != null && jsBridge.isModalOpen()) {
+                dismissActiveModal();
+                return;
+            }
+
+            webView.evaluateJavascript(
+                "(function() {"
+                + "  if (typeof window.closeAnyModal === 'function') { return window.closeAnyModal(); }"
+                + "  if (typeof window.closeScreenshotModal === 'function') {"
+                + "    var o = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+                + "    if (o && o.style.display !== 'none') { window.closeScreenshotModal(); return true; }"
+                + "  }"
+                + "  return false;"
+                + "})();",
+                value -> {
+                    if ("true".equals(value)) {
+                        if (jsBridge != null) jsBridge.resetModalState();
+                        return;
+                    }
+                    handleStandardBack();
+                }
+            );
+            return;
+        }
+
+        handleStandardBack();
+    }
+
+    private void dismissActiveModal() {
+        if (jsBridge != null) {
+            jsBridge.resetModalState();
+        }
+        if (webView != null) {
+            webView.evaluateJavascript(
+                "(function() {"
+                + "  if (typeof window.closeAnyModal === 'function') { return window.closeAnyModal(); }"
+                + "  if (typeof window.closeScreenshotModal === 'function') { window.closeScreenshotModal(); return true; }"
+                + "  var o = document.getElementById('screenshotModalOverlay') || document.querySelector('.screenshot-modal-overlay');"
+                + "  if (o) { o.style.display = 'none'; return true; }"
+                + "  return false;"
+                + "})();", null
+            );
+        }
+    }
+
+    private void handleStandardBack() {
         if (!isHomeView) {
             loadHomeUI();
-        } else if (webView.canGoBack()) {
+        } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
